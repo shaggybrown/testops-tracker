@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { TestEffort } from "@/types";
+import { loadFromStorage, saveToStorage } from "@/stores/storage";
 
 interface EffortsState {
   efforts: TestEffort[];
@@ -23,6 +24,27 @@ interface EffortsState {
   setFilters: (filters: Partial<EffortsState["filters"]>) => void;
   getFilteredEfforts: () => TestEffort[];
 }
+
+const STORAGE_KEY = "testops.efforts";
+
+const hydrateEfforts = (efforts: TestEffort[]) =>
+  efforts.map((effort) => ({
+    ...effort,
+    plannedStartDate: effort.plannedStartDate ? new Date(effort.plannedStartDate) : undefined,
+    plannedEndDate: effort.plannedEndDate ? new Date(effort.plannedEndDate) : undefined,
+    actualStartDate: effort.actualStartDate ? new Date(effort.actualStartDate) : undefined,
+    actualEndDate: effort.actualEndDate ? new Date(effort.actualEndDate) : undefined,
+    createdAt: new Date(effort.createdAt),
+    updatedAt: new Date(effort.updatedAt),
+    blockers: effort.blockers?.map((blocker) => ({
+      ...blocker,
+      createdAt: new Date(blocker.createdAt),
+    })),
+    links: effort.links?.map((link) => ({
+      ...link,
+      createdAt: new Date(link.createdAt),
+    })),
+  }));
 
 export const useEffortsStore = create<EffortsState>((set, get) => ({
   efforts: [],
@@ -142,7 +164,12 @@ export const useEffortsStore = create<EffortsState>((set, get) => ({
           updatedAt: new Date(),
         },
       ];
-      set({ efforts: mockEfforts, isLoading: false });
+      const storedEfforts = loadFromStorage<TestEffort[]>(STORAGE_KEY, []);
+      const efforts = storedEfforts.length > 0 ? hydrateEfforts(storedEfforts) : mockEfforts;
+      set({ efforts, isLoading: false });
+      if (storedEfforts.length === 0) {
+        saveToStorage(STORAGE_KEY, efforts);
+      }
     } catch (error) {
       set({
         error: error instanceof Error ? error.message : "Failed to fetch efforts",
@@ -159,7 +186,11 @@ export const useEffortsStore = create<EffortsState>((set, get) => ({
         createdAt: new Date(),
         updatedAt: new Date(),
       };
-      set((state) => ({ efforts: [...state.efforts, newEffort] }));
+      set((state) => {
+        const efforts = [...state.efforts, newEffort];
+        saveToStorage(STORAGE_KEY, efforts);
+        return { efforts };
+      });
       return newEffort;
     } catch (error) {
       throw error;
@@ -168,11 +199,13 @@ export const useEffortsStore = create<EffortsState>((set, get) => ({
 
   updateEffort: async (id, updates) => {
     try {
-      set((state) => ({
-        efforts: state.efforts.map((e) =>
+      set((state) => {
+        const efforts = state.efforts.map((e) =>
           e.id === id ? { ...e, ...updates, updatedAt: new Date() } : e
-        ),
-      }));
+        );
+        saveToStorage(STORAGE_KEY, efforts);
+        return { efforts };
+      });
     } catch (error) {
       throw error;
     }
@@ -180,9 +213,11 @@ export const useEffortsStore = create<EffortsState>((set, get) => ({
 
   deleteEffort: async (id) => {
     try {
-      set((state) => ({
-        efforts: state.efforts.filter((e) => e.id !== id),
-      }));
+      set((state) => {
+        const efforts = state.efforts.filter((e) => e.id !== id);
+        saveToStorage(STORAGE_KEY, efforts);
+        return { efforts };
+      });
     } catch (error) {
       throw error;
     }

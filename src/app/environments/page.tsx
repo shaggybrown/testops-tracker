@@ -23,7 +23,8 @@ type ReservationFormData = {
 };
 
 export default function Environments() {
-  const { environments, fetchEnvironments, reservations, createReservation, checkReservationConflict } = useEnvironmentsStore();
+  const { environments, fetchEnvironments, fetchReservations, reservations, createReservation, checkReservationConflict } =
+    useEnvironmentsStore();
   const { members, fetchMembers } = useMembersStore();
   const { addToast } = useUiStore();
 
@@ -39,8 +40,9 @@ export default function Environments() {
 
   useEffect(() => {
     fetchEnvironments();
+    fetchReservations();
     fetchMembers();
-  }, [fetchEnvironments, fetchMembers]);
+  }, [fetchEnvironments, fetchReservations, fetchMembers]);
 
   const handleCreateReservation = (envId: string) => {
     setSelectedEnv(envId);

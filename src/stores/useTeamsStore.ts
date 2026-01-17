@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { Team } from "@/types";
+import { loadFromStorage, saveToStorage } from "@/stores/storage";
 
 interface TeamsState {
   teams: Team[];
@@ -10,6 +11,15 @@ interface TeamsState {
   updateTeam: (id: string, updates: Partial<Team>) => Promise<void>;
   deleteTeam: (id: string) => Promise<void>;
 }
+
+const STORAGE_KEY = "testops.teams";
+
+const hydrateTeams = (teams: Team[]) =>
+  teams.map((team) => ({
+    ...team,
+    createdAt: new Date(team.createdAt),
+    updatedAt: new Date(team.updatedAt),
+  }));
 
 export const useTeamsStore = create<TeamsState>((set) => ({
   teams: [],
@@ -40,7 +50,12 @@ export const useTeamsStore = create<TeamsState>((set) => ({
           updatedAt: new Date(),
         },
       ];
-      set({ teams: mockTeams, isLoading: false });
+      const storedTeams = loadFromStorage<Team[]>(STORAGE_KEY, []);
+      const teams = storedTeams.length > 0 ? hydrateTeams(storedTeams) : mockTeams;
+      set({ teams, isLoading: false });
+      if (storedTeams.length === 0) {
+        saveToStorage(STORAGE_KEY, teams);
+      }
     } catch (error) {
       set({
         error: error instanceof Error ? error.message : "Failed to fetch teams",
@@ -57,7 +72,11 @@ export const useTeamsStore = create<TeamsState>((set) => ({
         createdAt: new Date(),
         updatedAt: new Date(),
       };
-      set((state) => ({ teams: [...state.teams, newTeam] }));
+      set((state) => {
+        const teams = [...state.teams, newTeam];
+        saveToStorage(STORAGE_KEY, teams);
+        return { teams };
+      });
       return newTeam;
     } catch (error) {
       throw error;
@@ -66,11 +85,13 @@ export const useTeamsStore = create<TeamsState>((set) => ({
 
   updateTeam: async (id, updates) => {
     try {
-      set((state) => ({
-        teams: state.teams.map((t) =>
+      set((state) => {
+        const teams = state.teams.map((t) =>
           t.id === id ? { ...t, ...updates, updatedAt: new Date() } : t
-        ),
-      }));
+        );
+        saveToStorage(STORAGE_KEY, teams);
+        return { teams };
+      });
     } catch (error) {
       throw error;
     }
@@ -78,9 +99,11 @@ export const useTeamsStore = create<TeamsState>((set) => ({
 
   deleteTeam: async (id) => {
     try {
-      set((state) => ({
-        teams: state.teams.filter((t) => t.id !== id),
-      }));
+      set((state) => {
+        const teams = state.teams.filter((t) => t.id !== id);
+        saveToStorage(STORAGE_KEY, teams);
+        return { teams };
+      });
     } catch (error) {
       throw error;
     }

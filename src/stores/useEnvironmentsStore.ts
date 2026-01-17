@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { Environment, EnvironmentReservation } from "@/types";
+import { loadFromStorage, saveToStorage } from "@/stores/storage";
 
 interface EnvironmentsState {
   environments: Environment[];
@@ -21,6 +22,25 @@ interface EnvironmentsState {
     excludeId?: string
   ) => boolean;
 }
+
+const ENV_STORAGE_KEY = "testops.environments";
+const RESERVATION_STORAGE_KEY = "testops.environment-reservations";
+
+const hydrateEnvironments = (envs: Environment[]) =>
+  envs.map((env) => ({
+    ...env,
+    createdAt: new Date(env.createdAt),
+    updatedAt: new Date(env.updatedAt),
+    healthUpdatedAt: env.healthUpdatedAt ? new Date(env.healthUpdatedAt) : undefined,
+  }));
+
+const hydrateReservations = (reservations: EnvironmentReservation[]) =>
+  reservations.map((res) => ({
+    ...res,
+    startDate: new Date(res.startDate),
+    endDate: new Date(res.endDate),
+    createdAt: new Date(res.createdAt),
+  }));
 
 export const useEnvironmentsStore = create<EnvironmentsState>((set, get) => ({
   environments: [],
@@ -56,7 +76,12 @@ export const useEnvironmentsStore = create<EnvironmentsState>((set, get) => ({
           updatedAt: new Date(),
         },
       ];
-      set({ environments: mockEnvs, isLoading: false });
+      const storedEnvs = loadFromStorage<Environment[]>(ENV_STORAGE_KEY, []);
+      const environments = storedEnvs.length > 0 ? hydrateEnvironments(storedEnvs) : mockEnvs;
+      set({ environments, isLoading: false });
+      if (storedEnvs.length === 0) {
+        saveToStorage(ENV_STORAGE_KEY, environments);
+      }
     } catch (error) {
       set({
         error: error instanceof Error ? error.message : "Failed to fetch environments",
@@ -68,7 +93,9 @@ export const useEnvironmentsStore = create<EnvironmentsState>((set, get) => ({
   fetchReservations: async () => {
     try {
       // TODO: Replace with actual API call
-      set({ reservations: [] });
+      const storedReservations = loadFromStorage<EnvironmentReservation[]>(RESERVATION_STORAGE_KEY, []);
+      const reservations = storedReservations.length > 0 ? hydrateReservations(storedReservations) : [];
+      set({ reservations });
     } catch (error) {
       throw error;
     }
@@ -82,7 +109,11 @@ export const useEnvironmentsStore = create<EnvironmentsState>((set, get) => ({
         createdAt: new Date(),
         updatedAt: new Date(),
       };
-      set((state) => ({ environments: [...state.environments, newEnv] }));
+      set((state) => {
+        const environments = [...state.environments, newEnv];
+        saveToStorage(ENV_STORAGE_KEY, environments);
+        return { environments };
+      });
       return newEnv;
     } catch (error) {
       throw error;
@@ -97,7 +128,11 @@ export const useEnvironmentsStore = create<EnvironmentsState>((set, get) => ({
         createdAt: new Date(),
         updatedAt: new Date(),
       };
-      set((state) => ({ reservations: [...state.reservations, newRes] }));
+      set((state) => {
+        const reservations = [...state.reservations, newRes];
+        saveToStorage(RESERVATION_STORAGE_KEY, reservations);
+        return { reservations };
+      });
       return newRes;
     } catch (error) {
       throw error;

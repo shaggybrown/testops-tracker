@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { Sprint } from "@/types";
+import { loadFromStorage, saveToStorage } from "@/stores/storage";
 
 interface SprintsState {
   sprints: Sprint[];
@@ -11,6 +12,17 @@ interface SprintsState {
   deleteSprint: (id: string) => Promise<void>;
   getSprintsByPI: (piId: string) => Sprint[];
 }
+
+const STORAGE_KEY = "testops.sprints";
+
+const hydrateSprints = (sprints: Sprint[]) =>
+  sprints.map((sprint) => ({
+    ...sprint,
+    startDate: new Date(sprint.startDate),
+    endDate: new Date(sprint.endDate),
+    createdAt: new Date(sprint.createdAt),
+    updatedAt: new Date(sprint.updatedAt),
+  }));
 
 export const useSprintsStore = create<SprintsState>((set, get) => ({
   sprints: [],
@@ -63,7 +75,12 @@ export const useSprintsStore = create<SprintsState>((set, get) => ({
           updatedAt: new Date(),
         },
       ];
-      set({ sprints: mockSprints, isLoading: false });
+      const storedSprints = loadFromStorage<Sprint[]>(STORAGE_KEY, []);
+      const sprints = storedSprints.length > 0 ? hydrateSprints(storedSprints) : mockSprints;
+      set({ sprints, isLoading: false });
+      if (storedSprints.length === 0) {
+        saveToStorage(STORAGE_KEY, sprints);
+      }
     } catch (error) {
       set({
         error: error instanceof Error ? error.message : "Failed to fetch sprints",
@@ -80,7 +97,11 @@ export const useSprintsStore = create<SprintsState>((set, get) => ({
         createdAt: new Date(),
         updatedAt: new Date(),
       };
-      set((state) => ({ sprints: [...state.sprints, newSprint] }));
+      set((state) => {
+        const sprints = [...state.sprints, newSprint];
+        saveToStorage(STORAGE_KEY, sprints);
+        return { sprints };
+      });
       return newSprint;
     } catch (error) {
       throw error;
@@ -89,11 +110,13 @@ export const useSprintsStore = create<SprintsState>((set, get) => ({
 
   updateSprint: async (id, updates) => {
     try {
-      set((state) => ({
-        sprints: state.sprints.map((s) =>
+      set((state) => {
+        const sprints = state.sprints.map((s) =>
           s.id === id ? { ...s, ...updates, updatedAt: new Date() } : s
-        ),
-      }));
+        );
+        saveToStorage(STORAGE_KEY, sprints);
+        return { sprints };
+      });
     } catch (error) {
       throw error;
     }
@@ -101,9 +124,11 @@ export const useSprintsStore = create<SprintsState>((set, get) => ({
 
   deleteSprint: async (id) => {
     try {
-      set((state) => ({
-        sprints: state.sprints.filter((s) => s.id !== id),
-      }));
+      set((state) => {
+        const sprints = state.sprints.filter((s) => s.id !== id);
+        saveToStorage(STORAGE_KEY, sprints);
+        return { sprints };
+      });
     } catch (error) {
       throw error;
     }

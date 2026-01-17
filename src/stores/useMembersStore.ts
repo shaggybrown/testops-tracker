@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { Member } from "@/types";
+import { loadFromStorage, saveToStorage } from "@/stores/storage";
 
 interface MembersState {
   members: Member[];
@@ -10,6 +11,15 @@ interface MembersState {
   updateMember: (id: string, updates: Partial<Member>) => Promise<void>;
   deleteMember: (id: string) => Promise<void>;
 }
+
+const STORAGE_KEY = "testops.members";
+
+const hydrateMembers = (members: Member[]) =>
+  members.map((member) => ({
+    ...member,
+    createdAt: new Date(member.createdAt),
+    updatedAt: new Date(member.updatedAt),
+  }));
 
 export const useMembersStore = create<MembersState>((set) => ({
   members: [],
@@ -55,7 +65,12 @@ export const useMembersStore = create<MembersState>((set) => ({
           updatedAt: new Date(),
         },
       ];
-      set({ members: mockMembers, isLoading: false });
+      const storedMembers = loadFromStorage<Member[]>(STORAGE_KEY, []);
+      const members = storedMembers.length > 0 ? hydrateMembers(storedMembers) : mockMembers;
+      set({ members, isLoading: false });
+      if (storedMembers.length === 0) {
+        saveToStorage(STORAGE_KEY, members);
+      }
     } catch (error) {
       set({
         error: error instanceof Error ? error.message : "Failed to fetch members",
@@ -72,7 +87,11 @@ export const useMembersStore = create<MembersState>((set) => ({
         createdAt: new Date(),
         updatedAt: new Date(),
       };
-      set((state) => ({ members: [...state.members, newMember] }));
+      set((state) => {
+        const members = [...state.members, newMember];
+        saveToStorage(STORAGE_KEY, members);
+        return { members };
+      });
       return newMember;
     } catch (error) {
       throw error;
@@ -81,11 +100,13 @@ export const useMembersStore = create<MembersState>((set) => ({
 
   updateMember: async (id, updates) => {
     try {
-      set((state) => ({
-        members: state.members.map((m) =>
+      set((state) => {
+        const members = state.members.map((m) =>
           m.id === id ? { ...m, ...updates, updatedAt: new Date() } : m
-        ),
-      }));
+        );
+        saveToStorage(STORAGE_KEY, members);
+        return { members };
+      });
     } catch (error) {
       throw error;
     }
@@ -93,9 +114,11 @@ export const useMembersStore = create<MembersState>((set) => ({
 
   deleteMember: async (id) => {
     try {
-      set((state) => ({
-        members: state.members.filter((m) => m.id !== id),
-      }));
+      set((state) => {
+        const members = state.members.filter((m) => m.id !== id);
+        saveToStorage(STORAGE_KEY, members);
+        return { members };
+      });
     } catch (error) {
       throw error;
     }
