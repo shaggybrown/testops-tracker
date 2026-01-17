@@ -87,6 +87,11 @@ export type Environment = {
   workspaceId: string;
   name: string;
   type: "qa" | "uat" | "staging" | "performance" | "other";
+  location: "on_prem" | "aws";
+  awsAccountName?: string;
+  awsAccountId?: string;
+  awsRegion?: string;
+  instanceGroup?: string;
   url?: string;
   ownerId?: string;
   notes?: string;
@@ -96,6 +101,15 @@ export type Environment = {
   healthUpdatedAt?: Date;
   createdAt: Date;
   updatedAt: Date;
+};
+
+export type EnvironmentConnection = {
+  id: string;
+  workspaceId: string;
+  fromEnvironmentId: string;
+  toEnvironmentId: string;
+  direction: "bidirectional" | "one_way";
+  createdAt: Date;
 };
 
 export type EnvironmentReservation = {

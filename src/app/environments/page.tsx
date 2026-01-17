@@ -5,15 +5,17 @@ import { useMembersStore } from '@/stores/useMembersStore';
 import { useUiStore } from '@/stores/useUiStore';
 import { PageHeader, EmptyState } from '@/components/Common';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { HealthBadge } from '@/components/Badges';
-import { Plus, AlertCircle } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { Plus, AlertCircle, Link2, PlugZap } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
 import { formatDate } from '@/lib/utils';
+import { Environment } from '@/types';
 
 type ReservationFormData = {
   memberId: string;
@@ -23,13 +25,24 @@ type ReservationFormData = {
 };
 
 export default function Environments() {
-  const { environments, fetchEnvironments, fetchReservations, reservations, createReservation, checkReservationConflict } =
-    useEnvironmentsStore();
+  const {
+    environments,
+    connections,
+    fetchEnvironments,
+    fetchConnections,
+    fetchReservations,
+    reservations,
+    createConnection,
+    createReservation,
+    checkReservationConflict,
+  } = useEnvironmentsStore();
   const { members, fetchMembers } = useMembersStore();
   const { addToast } = useUiStore();
 
   const [showSheet, setShowSheet] = useState(false);
   const [selectedEnv, setSelectedEnv] = useState<string | null>(null);
+  const [draggingEnvId, setDraggingEnvId] = useState<string | null>(null);
+  const [dropTargetId, setDropTargetId] = useState<string | null>(null);
   const [formData, setFormData] = useState<ReservationFormData>({
     memberId: '',
     startDate: '',
@@ -40,9 +53,10 @@ export default function Environments() {
 
   useEffect(() => {
     fetchEnvironments();
+    fetchConnections();
     fetchReservations();
     fetchMembers();
-  }, [fetchEnvironments, fetchReservations, fetchMembers]);
+  }, [fetchEnvironments, fetchConnections, fetchReservations, fetchMembers]);
 
   const handleCreateReservation = (envId: string) => {
     setSelectedEnv(envId);
@@ -93,6 +107,14 @@ export default function Environments() {
     setShowSheet(false);
   };
 
+  const handleConnect = (fromId: string | null, toId: string) => {
+    if (!fromId || fromId === toId) return;
+    createConnection(fromId, toId);
+    addToast('Integration link created');
+    setDraggingEnvId(null);
+    setDropTargetId(null);
+  };
+
   const getEnvReservations = (envId: string) => {
     return reservations.filter((r) => r.environmentId === envId);
   };
@@ -100,6 +122,43 @@ export default function Environments() {
   const getMemberName = (memberId: string) => {
     return members.find((m) => m.id === memberId)?.name || 'Unknown';
   };
+
+  const groupedEnvironments = useMemo(() => {
+    const groups: Record<string, { label: string; environments: Environment[] }> = {};
+    environments.forEach((env) => {
+      const label =
+        env.location === 'aws'
+          ? `${env.awsAccountName || 'AWS Account'}${env.awsRegion ? ` (${env.awsRegion})` : ''}`
+          : 'On-Premise';
+      if (!groups[label]) {
+        groups[label] = { label, environments: [] };
+      }
+      groups[label].environments.push(env);
+    });
+    return Object.values(groups);
+  }, [environments]);
+
+  const nodePositions = useMemo(() => {
+    const positions: Record<string, { x: number; y: number }> = {};
+    const columnCount = Math.max(groupedEnvironments.length, 1);
+    groupedEnvironments.forEach((group, columnIndex) => {
+      const rowCount = Math.max(group.environments.length, 1);
+      group.environments.forEach((env, rowIndex) => {
+        const x = ((columnIndex + 0.5) / columnCount) * 100;
+        const ySpacing = 70 / (rowCount + 1);
+        const y = 15 + ySpacing * (rowIndex + 1);
+        positions[env.id] = { x, y };
+      });
+    });
+    return positions;
+  }, [groupedEnvironments]);
+
+  const getConnectionsForEnv = (envId: string) =>
+    connections.filter(
+      (connection) =>
+        connection.fromEnvironmentId === envId ||
+        connection.toEnvironmentId === envId
+    );
 
   return (
     <div>
@@ -115,8 +174,103 @@ export default function Environments() {
           description="Create your first test environment"
         />
       ) : (
-        <div className="grid gap-4 md:grid-cols-2">
-          {environments.map((env) => {
+        <div className="space-y-6">
+          <Card>
+            <CardHeader>
+              <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                <div>
+                  <CardTitle className="text-lg">Integration Canvas</CardTitle>
+                  <CardDescription>
+                    Drag a node onto another to declare bidirectional connectivity.
+                  </CardDescription>
+                </div>
+                <Badge variant="outline" className="text-xs uppercase tracking-wide">
+                  Drag to connect
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="relative rounded-2xl border border-border bg-[linear-gradient(120deg,rgba(12,74,110,0.08),rgba(14,116,144,0.08),rgba(15,23,42,0.02))] p-6">
+                <div className="absolute inset-0 opacity-60 [background-image:radial-gradient(#0f172a_1px,transparent_1px)] [background-size:24px_24px]" />
+                <svg className="absolute inset-0 h-full w-full" viewBox="0 0 100 100" aria-hidden="true">
+                  <defs>
+                    <linearGradient id="connGradient" x1="0" y1="0" x2="1" y2="1">
+                      <stop offset="0%" stopColor="#0f766e" stopOpacity="0.9" />
+                      <stop offset="100%" stopColor="#0ea5a4" stopOpacity="0.7" />
+                    </linearGradient>
+                  </defs>
+                  {connections.map((connection) => {
+                    const from = nodePositions[connection.fromEnvironmentId];
+                    const to = nodePositions[connection.toEnvironmentId];
+                    if (!from || !to) return null;
+                    return (
+                      <line
+                        key={connection.id}
+                        x1={from.x}
+                        y1={from.y}
+                        x2={to.x}
+                        y2={to.y}
+                        stroke="url(#connGradient)"
+                        strokeWidth="2"
+                        strokeDasharray="6 4"
+                      />
+                    );
+                  })}
+                </svg>
+                <div
+                  className="absolute left-6 right-6 top-6 grid gap-6 text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground"
+                  style={{ gridTemplateColumns: `repeat(${groupedEnvironments.length}, minmax(0, 1fr))` }}
+                >
+                  {groupedEnvironments.map((group) => (
+                    <div key={group.label} className="text-center">
+                      {group.label}
+                    </div>
+                  ))}
+                </div>
+                <div className="relative h-[420px]">
+                  {environments.map((env) => {
+                    const position = nodePositions[env.id];
+                    if (!position) return null;
+                    const isDropTarget = dropTargetId === env.id;
+                    return (
+                      <div
+                        key={env.id}
+                        draggable
+                        onDragStart={() => setDraggingEnvId(env.id)}
+                        onDragEnd={() => {
+                          setDraggingEnvId(null);
+                          setDropTargetId(null);
+                        }}
+                        onDragOver={(event) => {
+                          event.preventDefault();
+                          setDropTargetId(env.id);
+                        }}
+                        onDrop={() => handleConnect(draggingEnvId, env.id)}
+                        className={`absolute -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-border bg-card/95 px-4 py-3 shadow-sm transition-all ${
+                          isDropTarget ? 'ring-2 ring-teal-500/70' : 'hover:-translate-y-0.5 hover:shadow-md'
+                        }`}
+                        style={{ left: `${position.x}%`, top: `${position.y}%` }}
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <div>
+                            <p className="text-sm font-semibold">{env.name}</p>
+                            <p className="text-xs text-muted-foreground">{env.type.toUpperCase()}</p>
+                          </div>
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                            <Link2 className="h-3 w-3" />
+                            {getConnectionsForEnv(env.id).length}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            {environments.map((env) => {
             const envReservations = getEnvReservations(env.id);
             const now = new Date();
             const activeReservations = envReservations.filter(
@@ -133,11 +287,38 @@ export default function Environments() {
                     </div>
                     <HealthBadge health={env.health} />
                   </div>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <Badge variant="outline" className="text-xs">
+                      {env.location === 'aws' ? 'AWS' : 'On-Prem'}
+                    </Badge>
+                    {env.awsAccountName && (
+                      <Badge variant="secondary" className="text-xs">
+                        {env.awsAccountName}
+                      </Badge>
+                    )}
+                    {env.instanceGroup && (
+                      <Badge variant="secondary" className="text-xs">
+                        {env.instanceGroup.toUpperCase()}
+                      </Badge>
+                    )}
+                  </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   {env.url && <p className="text-sm text-muted-foreground">{env.url}</p>}
+                  {env.awsAccountId && (
+                    <p className="text-xs text-muted-foreground">Account: {env.awsAccountId}</p>
+                  )}
                   {env.healthReason && (
                     <p className="text-xs text-muted-foreground">{env.healthReason}</p>
+                  )}
+                  {getConnectionsForEnv(env.id).length > 0 && (
+                    <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-900">
+                      <div className="flex items-center gap-2 font-semibold">
+                        <PlugZap className="h-3 w-3" />
+                        Integrated with {getConnectionsForEnv(env.id).length} environment
+                        {getConnectionsForEnv(env.id).length !== 1 ? 's' : ''}
+                      </div>
+                    </div>
                   )}
 
                   {/* Active Reservations */}
@@ -180,6 +361,7 @@ export default function Environments() {
               </Card>
             );
           })}
+          </div>
         </div>
       )}
 
