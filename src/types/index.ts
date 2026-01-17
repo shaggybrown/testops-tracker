@@ -61,7 +61,7 @@ export type TestTypeDefinition = {
   workspaceId: string;
   name: string; // e.g., "Performance Testing", "System Integration"
   description?: string;
-  ownerTeamId: string; // Primary team responsible
+  ownerTeamId?: string; // Primary team responsible (assigned later via test efforts)
   participatingTeamIds: string[]; // Other teams that may contribute
   active: boolean;
   createdAt: Date;

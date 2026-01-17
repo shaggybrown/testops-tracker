@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { Team, Member, TestType, Status } from "@/types";
+import { TestType, Status } from "@/types";
 
 interface ConfigState {
   testTypes: TestType[];

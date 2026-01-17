@@ -3,7 +3,7 @@
 import { useTeamsStore } from '@/stores/useTeamsStore';
 import { useUiStore } from '@/stores/useUiStore';
 import { PageHeader } from '@/components/Common';
-import { DataTable } from '@/components/DataTable';
+import { Column, DataTable } from '@/components/DataTable';
 import { TeamForm } from '@/components/Forms';
 import { Button } from '@/components/ui/button';
 import {
@@ -16,33 +16,35 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Edit2, Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { Team } from '@/types';
 
 export default function Teams() {
-  const { teams, fetchTeams, isLoading, createTeam, updateTeam, deleteTeam } =
+  const { teams, fetchTeams, createTeam, updateTeam, deleteTeam } =
     useTeamsStore();
   const { addToast } = useUiStore();
-  const [editingTeam, setEditingTeam] = useState<any>(null);
+  const [editingTeam, setEditingTeam] = useState<Team | null>(null);
   const [deleteTeamId, setDeleteTeamId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchTeams();
-  }, []);
+  }, [fetchTeams]);
 
-  const handleCreateTeam = async (data: any) => {
+  const handleCreateTeam = async (data: Omit<Team, 'id' | 'createdAt' | 'updatedAt' | 'workspaceId'>) => {
     try {
-      await createTeam(data);
+      await createTeam({ ...data, workspaceId: '1' });
       addToast('Team created successfully', undefined, 'success');
-    } catch (error) {
+    } catch {
       addToast('Failed to create team', undefined, 'error');
     }
   };
 
-  const handleUpdateTeam = async (data: any) => {
+  const handleUpdateTeam = async (data: Partial<Team>) => {
+    if (!editingTeam) return;
     try {
       await updateTeam(editingTeam.id, data);
       setEditingTeam(null);
       addToast('Team updated successfully', undefined, 'success');
-    } catch (error) {
+    } catch {
       addToast('Failed to update team', undefined, 'error');
     }
   };
@@ -53,24 +55,25 @@ export default function Teams() {
       await deleteTeam(deleteTeamId);
       setDeleteTeamId(null);
       addToast('Team deleted successfully', undefined, 'success');
-    } catch (error) {
+    } catch {
       addToast('Failed to delete team', undefined, 'error');
     }
   };
 
-  const columns = [
+  const columns: Column<Team>[] = [
     { key: 'name' as const, label: 'Team Name', sortable: true },
     {
       key: 'description' as const,
       label: 'Description',
-      render: (value: any) => (
-        <span className="text-muted-foreground">{value || '—'}</span>
-      ),
+      render: (value) => {
+        const description = typeof value === 'string' && value.trim() ? value : '-';
+        return <span className="text-muted-foreground">{description}</span>;
+      },
     },
     {
       key: 'archived' as const,
       label: 'Status',
-      render: (value: any) => (
+      render: (value) => (
         <span className={value ? 'text-muted-foreground' : 'text-green-600'}>
           {value ? 'Archived' : 'Active'}
         </span>

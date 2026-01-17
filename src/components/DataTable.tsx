@@ -7,12 +7,11 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Button } from '@/components/ui/button';
 import { ChevronUp, ChevronDown } from 'lucide-react';
 
 export type SortDirection = 'asc' | 'desc' | null;
 
-interface Column<T> {
+export interface Column<T> {
   key: keyof T;
   label: string;
   sortable?: boolean;
@@ -47,7 +46,7 @@ export function DataTable<T extends { id: string }>({
     }
   };
 
-  let sortedData = [...data];
+  const sortedData = [...data];
   if (sortKey && sortDir) {
     sortedData.sort((a, b) => {
       const aVal = a[sortKey];

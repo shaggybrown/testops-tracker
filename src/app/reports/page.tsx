@@ -2,7 +2,7 @@
 
 import { useSprintsStore } from '@/stores/useSprintsStore';
 import { useEffortsStore } from '@/stores/useEffortsStore';
-import { useConfigStore } from '@/stores/useConfigStore';
+import { useTestTypesStore } from '@/stores/useTestTypesStore';
 import { PageHeader } from '@/components/Common';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -15,12 +15,13 @@ import { formatDate } from '@/lib/utils';
 export default function Reports() {
   const { sprints, fetchSprints } = useSprintsStore();
   const { efforts, fetchEfforts } = useEffortsStore();
-  const { testTypes, statuses } = useConfigStore();
+  const { testTypes, fetchTestTypes } = useTestTypesStore();
 
   useEffect(() => {
     fetchSprints();
     fetchEfforts();
-  }, []);
+    fetchTestTypes();
+  }, [fetchSprints, fetchEfforts, fetchTestTypes]);
 
   const getSprintEfforts = (sprintId: string) => {
     return efforts.filter((e) => e.sprintId === sprintId);
@@ -30,7 +31,7 @@ export default function Reports() {
     const sprintEfforts = getSprintEfforts(sprintId);
     const distribution: Record<string, number> = {};
     testTypes.forEach((type) => {
-      distribution[type] = sprintEfforts.filter((e) => e.testType === type).length;
+      distribution[type.name] = sprintEfforts.filter((e) => e.testTypeDefinitionId === type.id).length;
     });
     return distribution;
   };
@@ -61,7 +62,7 @@ export default function Reports() {
         sprint.name,
         effort.title,
         effort.status,
-        effort.testType,
+        testTypes.find((tt) => tt.id === effort.testTypeDefinitionId)?.name || 'Unknown',
         effort.priority,
         effort.teamId,
         effort.plannedStartDate ? formatDate(effort.plannedStartDate) : '',

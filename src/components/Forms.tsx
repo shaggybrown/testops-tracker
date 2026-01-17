@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Team } from '@/types';
+import { Member, Team } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -14,7 +14,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from '@/components/ui/sheet';
-import { Plus, Edit2 } from 'lucide-react';
+import { Plus } from 'lucide-react';
 
 interface TeamFormProps {
   team?: Team;
@@ -115,24 +115,24 @@ export function TeamForm({
   );
 }
 
+type MemberFormData = Pick<Member, 'name' | 'email' | 'roles' | 'teamIds'>;
+
 interface MemberFormProps {
-  member?: any;
-  teams: Team[];
-  onSubmit: (data: any) => Promise<void>;
+  member?: Member;
+  onSubmit: (data: MemberFormData) => Promise<void>;
   isOpen?: boolean;
   onOpenChange?: (open: boolean) => void;
 }
 
 export function MemberForm({
   member,
-  teams,
   onSubmit,
   isOpen,
   onOpenChange,
 }: MemberFormProps) {
   const [open, setOpen] = useState(isOpen || false);
   const [isLoading, setIsLoading] = useState(false);
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<MemberFormData>({
     name: member?.name || '',
     email: member?.email || '',
     roles: member?.roles || ['MEMBER'],

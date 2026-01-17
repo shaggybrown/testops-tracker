@@ -10,11 +10,10 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
 import { HealthBadge } from '@/components/Badges';
 import { Plus, AlertCircle } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { formatDate, getDaysDiff } from '@/lib/utils';
+import { formatDate } from '@/lib/utils';
 
 type ReservationFormData = {
   memberId: string;
@@ -41,7 +40,7 @@ export default function Environments() {
   useEffect(() => {
     fetchEnvironments();
     fetchMembers();
-  }, []);
+  }, [fetchEnvironments, fetchMembers]);
 
   const handleCreateReservation = (envId: string) => {
     setSelectedEnv(envId);

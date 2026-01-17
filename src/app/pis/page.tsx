@@ -4,7 +4,6 @@ import { usePIsStore } from '@/stores/usePIsStore';
 import { useSprintsStore } from '@/stores/useSprintsStore';
 import { useUiStore } from '@/stores/useUiStore';
 import { PageHeader, EmptyState } from '@/components/Common';
-import { DataTable } from '@/components/DataTable';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
@@ -15,6 +14,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Plus, Edit2, Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { formatDate } from '@/lib/utils';
+import { ProgramIncrement } from '@/types';
 
 type PIFormData = {
   name: string;
@@ -40,7 +40,7 @@ export default function PIs() {
 
   useEffect(() => {
     fetchPIs();
-  }, []);
+  }, [fetchPIs]);
 
   const handleCreate = () => {
     setFormData({ name: '', goal: '', startDate: '', endDate: '' });
@@ -48,7 +48,7 @@ export default function PIs() {
     setShowSheet(true);
   };
 
-  const handleEdit = (pi: any) => {
+  const handleEdit = (pi: ProgramIncrement) => {
     setFormData({
       name: pi.name,
       goal: pi.goal || '',
@@ -96,49 +96,6 @@ export default function PIs() {
     addToast('PI deleted successfully');
   };
 
-  const columns = [
-    {
-      key: 'name',
-      label: 'PI Name',
-      render: (pi: any) => <span className="font-semibold">{pi.name}</span>,
-    },
-    {
-      key: 'goal',
-      label: 'Goal',
-      render: (pi: any) => <span className="text-sm text-muted-foreground">{pi.goal || '-'}</span>,
-    },
-    {
-      key: 'dates',
-      label: 'Dates',
-      render: (pi: any) => (
-        <span className="text-sm">
-          {formatDate(pi.startDate)} → {formatDate(pi.endDate)}
-        </span>
-      ),
-    },
-    {
-      key: 'sprints',
-      label: 'Sprints',
-      render: (pi: any) => {
-        const sprints = getSprintsByPI(pi.id);
-        return <span className="font-semibold">{sprints.length}</span>;
-      },
-    },
-    {
-      key: 'actions',
-      label: 'Actions',
-      render: (pi: any) => (
-        <div className="flex gap-2">
-          <Button variant="ghost" size="sm" onClick={() => handleEdit(pi)}>
-            <Edit2 className="h-4 w-4" />
-          </Button>
-          <Button variant="ghost" size="sm" onClick={() => setDeleteId(pi.id)}>
-            <Trash2 className="h-4 w-4 text-destructive" />
-          </Button>
-        </div>
-      ),
-    },
-  ];
 
   return (
     <div>
@@ -202,7 +159,7 @@ export default function PIs() {
                       <div className="space-y-1">
                         {sprints.map((sprint) => (
                           <div key={sprint.id} className="text-sm text-muted-foreground">
-                            • {sprint.name} ({formatDate(sprint.startDate)} - {formatDate(sprint.endDate)})
+                            - {sprint.name} ({formatDate(sprint.startDate)} - {formatDate(sprint.endDate)})
                           </div>
                         ))}
                       </div>

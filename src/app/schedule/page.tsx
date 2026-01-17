@@ -2,12 +2,12 @@
 
 import { useEffortsStore } from '@/stores/useEffortsStore';
 import { useEnvironmentsStore } from '@/stores/useEnvironmentsStore';
-import { useSprintsStore } from '@/stores/useSprintsStore';
-import { PageHeader, EmptyState } from '@/components/Common';
+import { useTestTypesStore } from '@/stores/useTestTypesStore';
+import { PageHeader } from '@/components/Common';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { formatDate, getDaysDiff } from '@/lib/utils';
 import { startOfMonth, endOfMonth, eachDayOfInterval, format, isToday } from 'date-fns';
@@ -15,12 +15,14 @@ import { startOfMonth, endOfMonth, eachDayOfInterval, format, isToday } from 'da
 export default function Schedule() {
   const { efforts, fetchEfforts } = useEffortsStore();
   const { fetchEnvironments } = useEnvironmentsStore();
+  const { testTypes, fetchTestTypes } = useTestTypesStore();
   const [currentDate, setCurrentDate] = useState(new Date());
 
   useEffect(() => {
     fetchEfforts();
     fetchEnvironments();
-  }, []);
+    fetchTestTypes();
+  }, [fetchEfforts, fetchEnvironments, fetchTestTypes]);
 
   const monthStart = startOfMonth(currentDate);
   const monthEnd = endOfMonth(currentDate);
@@ -161,7 +163,7 @@ export default function Schedule() {
                         </p>
                       </div>
                       <Badge variant="outline" className="capitalize">
-                        {effort.testType}
+                        {testTypes.find((tt) => tt.id === effort.testTypeDefinitionId)?.name || 'Unknown'}
                       </Badge>
                     </div>
                   ))}

@@ -11,7 +11,7 @@ interface TeamsState {
   deleteTeam: (id: string) => Promise<void>;
 }
 
-export const useTeamsStore = create<TeamsState>((set, get) => ({
+export const useTeamsStore = create<TeamsState>((set) => ({
   teams: [],
   isLoading: false,
   error: null,

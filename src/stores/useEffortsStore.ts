@@ -19,6 +19,7 @@ interface EffortsState {
     effort: Omit<TestEffort, "id" | "createdAt" | "updatedAt">
   ) => Promise<TestEffort>;
   updateEffort: (id: string, updates: Partial<TestEffort>) => Promise<void>;
+  deleteEffort: (id: string) => Promise<void>;
   setFilters: (filters: Partial<EffortsState["filters"]>) => void;
   getFilteredEfforts: () => TestEffort[];
 }
@@ -171,6 +172,16 @@ export const useEffortsStore = create<EffortsState>((set, get) => ({
         efforts: state.efforts.map((e) =>
           e.id === id ? { ...e, ...updates, updatedAt: new Date() } : e
         ),
+      }));
+    } catch (error) {
+      throw error;
+    }
+  },
+
+  deleteEffort: async (id) => {
+    try {
+      set((state) => ({
+        efforts: state.efforts.filter((e) => e.id !== id),
       }));
     } catch (error) {
       throw error;

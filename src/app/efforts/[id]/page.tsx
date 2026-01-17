@@ -15,12 +15,22 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { StatusBadge, PriorityBadge } from '@/components/Badges';
-import { Edit2, History, Plus } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { Edit2, History } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { formatDate, formatDateTime } from '@/lib/utils';
+import { EffortBlocker, TestEffort } from '@/types';
+
+type EffortFormData = {
+  title: string;
+  description: string;
+  status: TestEffort['status'];
+  priority: TestEffort['priority'];
+  progress: number;
+  estimate: number;
+  estimateUnit: NonNullable<TestEffort['estimateUnit']>;
+};
 
 export default function EffortDetail() {
   const params = useParams();
@@ -28,42 +38,53 @@ export default function EffortDetail() {
 
   const { efforts, fetchEfforts, updateEffort } = useEffortsStore();
   const { getEventsByEntity } = useAuditStore();
-  const { teams } = useTeamsStore();
-  const { testTypes } = useTestTypesStore();
-  const { pis } = usePIsStore();
-  const { sprints } = useSprintsStore();
+  const { teams, fetchTeams } = useTeamsStore();
+  const { testTypes, fetchTestTypes } = useTestTypesStore();
+  const { pis, fetchPIs } = usePIsStore();
+  const { sprints, fetchSprints } = useSprintsStore();
   const { addToast } = useUiStore();
 
   const [editing, setEditing] = useState(false);
-  const [effort, setEffort] = useState<any>(null);
-  const [formData, setFormData] = useState<any>({});
+  const [formData, setFormData] = useState<EffortFormData | null>(null);
 
   useEffect(() => {
     fetchEfforts();
-    if (efforts.length === 0) return;
-    
-    const found = efforts.find((e) => e.id === effortId);
-    setEffort(found);
-    if (found) {
-      setFormData({
-        title: found.title,
-        description: found.description || '',
-        status: found.status,
-        priority: found.priority,
-        progress: found.progress || 0,
-        estimate: found.estimate || 0,
-        estimateUnit: found.estimateUnit || 'hours',
-      });
+    fetchTeams();
+    fetchTestTypes();
+    fetchPIs();
+    fetchSprints();
+  }, [fetchEfforts, fetchTeams, fetchTestTypes, fetchPIs, fetchSprints]);
+
+  const effort = useMemo(
+    () => efforts.find((e) => e.id === effortId),
+    [efforts, effortId]
+  );
+
+  const effectiveFormData = useMemo(() => {
+    if (formData) {
+      return formData;
     }
-  }, [effortId]);
+    if (!effort) {
+      return null;
+    }
+    return {
+      title: effort.title,
+      description: effort.description || '',
+      status: effort.status,
+      priority: effort.priority,
+      progress: effort.progress ?? 0,
+      estimate: effort.estimate ?? 0,
+      estimateUnit: effort.estimateUnit ?? 'hours',
+    };
+  }, [effort, formData]);
 
   const handleSave = () => {
-    if (!effort) return;
-    
-    updateEffort(effortId, formData);
+    if (!effort || !effectiveFormData) return;
+
+    updateEffort(effortId, effectiveFormData);
     addToast('Effort updated successfully');
-    setEffort({ ...effort, ...formData });
     setEditing(false);
+    setFormData(null);
   };
 
   if (!effort) {
@@ -82,7 +103,27 @@ export default function EffortDetail() {
         title={effort.title}
         description={`${sprint?.name || 'Unknown Sprint'} in ${pi?.name || 'Unknown PI'}`}
         action={
-          <Button onClick={() => setEditing(!editing)} variant={editing ? 'default' : 'outline'} size="sm">
+          <Button
+            onClick={() => {
+              if (editing) {
+                setEditing(false);
+                setFormData(null);
+                return;
+              }
+              setFormData({
+                title: effort.title,
+                description: effort.description || '',
+                status: effort.status,
+                priority: effort.priority,
+                progress: effort.progress ?? 0,
+                estimate: effort.estimate ?? 0,
+                estimateUnit: effort.estimateUnit ?? 'hours',
+              });
+              setEditing(true);
+            }}
+            variant={editing ? 'default' : 'outline'}
+            size="sm"
+          >
             <Edit2 className="h-4 w-4 mr-2" />
             {editing ? 'Editing' : 'Edit'}
           </Button>
@@ -98,10 +139,10 @@ export default function EffortDetail() {
               <CardTitle className="text-lg">Description</CardTitle>
             </CardHeader>
             <CardContent>
-              {editing ? (
+              {editing && effectiveFormData ? (
                 <Textarea
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  value={effectiveFormData.description}
+                  onChange={(e) => setFormData({ ...effectiveFormData, description: e.target.value })}
                   placeholder="Add description..."
                 />
               ) : (
@@ -118,8 +159,13 @@ export default function EffortDetail() {
             <CardContent className="space-y-4">
               <div>
                 <Label>Status</Label>
-                {editing ? (
-                  <Select value={formData.status} onValueChange={(value) => setFormData({ ...formData, status: value })}>
+                {editing && effectiveFormData ? (
+                  <Select
+                    value={effectiveFormData.status}
+                    onValueChange={(value: TestEffort['status']) =>
+                      setFormData({ ...effectiveFormData, status: value })
+                    }
+                  >
                     <SelectTrigger className="mt-1">
                       <SelectValue />
                     </SelectTrigger>
@@ -140,8 +186,13 @@ export default function EffortDetail() {
 
               <div>
                 <Label>Priority</Label>
-                {editing ? (
-                  <Select value={formData.priority} onValueChange={(value) => setFormData({ ...formData, priority: value })}>
+                {editing && effectiveFormData ? (
+                  <Select
+                    value={effectiveFormData.priority}
+                    onValueChange={(value: TestEffort['priority']) =>
+                      setFormData({ ...effectiveFormData, priority: value })
+                    }
+                  >
                     <SelectTrigger className="mt-1">
                       <SelectValue />
                     </SelectTrigger>
@@ -171,13 +222,18 @@ export default function EffortDetail() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label>Progress %</Label>
-                  {editing ? (
+                  {editing && effectiveFormData ? (
                     <Input
                       type="number"
                       min="0"
                       max="100"
-                      value={formData.progress}
-                      onChange={(e) => setFormData({ ...formData, progress: parseInt(e.target.value) })}
+                      value={effectiveFormData.progress}
+                      onChange={(e) =>
+                        setFormData({
+                          ...effectiveFormData,
+                          progress: e.target.value === '' ? 0 : Number(e.target.value),
+                        })
+                      }
                       className="mt-1"
                     />
                   ) : (
@@ -187,15 +243,25 @@ export default function EffortDetail() {
 
                 <div>
                   <Label>Estimate</Label>
-                  {editing ? (
+                  {editing && effectiveFormData ? (
                     <div className="flex gap-2 mt-1">
                       <Input
                         type="number"
-                        value={formData.estimate}
-                        onChange={(e) => setFormData({ ...formData, estimate: parseInt(e.target.value) })}
+                        value={effectiveFormData.estimate}
+                        onChange={(e) =>
+                          setFormData({
+                            ...effectiveFormData,
+                            estimate: e.target.value === '' ? 0 : Number(e.target.value),
+                          })
+                        }
                         placeholder="0"
                       />
-                      <Select value={formData.estimateUnit} onValueChange={(value) => setFormData({ ...formData, estimateUnit: value })}>
+                      <Select
+                        value={effectiveFormData.estimateUnit}
+                        onValueChange={(value: EffortFormData['estimateUnit']) =>
+                          setFormData({ ...effectiveFormData, estimateUnit: value })
+                        }
+                      >
                         <SelectTrigger className="w-20">
                           <SelectValue />
                         </SelectTrigger>
@@ -240,11 +306,14 @@ export default function EffortDetail() {
                       </div>
                       {event.changes && Object.keys(event.changes).length > 0 && (
                         <div className="mt-2 space-y-1 text-xs">
-                          {Object.entries(event.changes).map(([key, change]: [string, any]) => (
-                            <p key={key} className="text-muted-foreground">
-                              <span className="font-semibold">{key}:</span> {change.old} → {change.new}
-                            </p>
-                          ))}
+                          {Object.entries(event.changes).map(([key, change]) => {
+                            const entry = change as { old?: unknown; new?: unknown };
+                            return (
+                              <p key={key} className="text-muted-foreground">
+                                <span className="font-semibold">{key}:</span> {String(entry.old ?? '')} to {String(entry.new ?? '')}
+                              </p>
+                            );
+                          })}
                         </div>
                       )}
                     </div>
@@ -306,7 +375,7 @@ export default function EffortDetail() {
                 <CardTitle className="text-sm">Blockers</CardTitle>
               </CardHeader>
               <CardContent className="space-y-2">
-                {effort.blockers.map((blocker: any) => (
+                {effort.blockers.map((blocker: EffortBlocker) => (
                   <div key={blocker.id} className="border rounded p-2">
                     <p className="text-sm font-semibold">{blocker.title}</p>
                     <p className="text-xs text-muted-foreground">{blocker.description}</p>

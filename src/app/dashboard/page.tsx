@@ -9,14 +9,14 @@ import { BarChart3, Users, Database, Zap } from 'lucide-react';
 import { useEffect } from 'react';
 
 export default function Dashboard() {
-  const { user, isLoading: authLoading } = useAuthStore();
+  const { isLoading: authLoading } = useAuthStore();
   const { teams, fetchTeams, isLoading: teamsLoading } = useTeamsStore();
   const { environments, fetchEnvironments } = useEnvironmentsStore();
 
   useEffect(() => {
     fetchTeams();
     fetchEnvironments();
-  }, []);
+  }, [fetchTeams, fetchEnvironments]);
 
   if (authLoading || teamsLoading) {
     return <div className='text-center py-12'>Loading...</div>;

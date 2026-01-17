@@ -58,6 +58,16 @@ const mockTestTypes: TestTypeDefinition[] = [
     createdAt: new Date(),
     updatedAt: new Date(),
   },
+  {
+    id: 'tt-5',
+    workspaceId: 'ws-1',
+    name: 'Regression Testing',
+    description: 'General regression test suite - assign to team per test cycle',
+    participatingTeamIds: ['team-1', 'team-2'],
+    active: true,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  },
 ];
 
 export const useTestTypesStore = create<TestTypesStore>((set, get) => ({

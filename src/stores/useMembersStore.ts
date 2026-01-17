@@ -11,7 +11,7 @@ interface MembersState {
   deleteMember: (id: string) => Promise<void>;
 }
 
-export const useMembersStore = create<MembersState>((set, get) => ({
+export const useMembersStore = create<MembersState>((set) => ({
   members: [],
   isLoading: false,
   error: null,

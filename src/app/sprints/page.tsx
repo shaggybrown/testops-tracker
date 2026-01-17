@@ -3,7 +3,7 @@
 import { useSprintsStore } from '@/stores/useSprintsStore';
 import { useUiStore } from '@/stores/useUiStore';
 import { PageHeader } from '@/components/Common';
-import { DataTable } from '@/components/DataTable';
+import { Column, DataTable } from '@/components/DataTable';
 import { Button } from '@/components/ui/button';
 import {
   AlertDialog,
@@ -27,13 +27,14 @@ import { Textarea } from '@/components/ui/textarea';
 import { Edit2, Plus, Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { formatDate } from '@/lib/utils';
+import { Sprint } from '@/types';
 
 export default function Sprints() {
   const { sprints, fetchSprints, createSprint, updateSprint, deleteSprint } =
     useSprintsStore();
   const { addToast } = useUiStore();
   const [openCreate, setOpenCreate] = useState(false);
-  const [editingSprint, setEditingSprint] = useState<any>(null);
+  const [editingSprint, setEditingSprint] = useState<Sprint | null>(null);
   const [deleteSprintId, setDeleteSprintId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     name: '',
@@ -44,7 +45,7 @@ export default function Sprints() {
 
   useEffect(() => {
     fetchSprints();
-  }, []);
+  }, [fetchSprints]);
 
   const handleSubmit = async (e: React.FormEvent, isEdit = false) => {
     e.preventDefault();
@@ -69,12 +70,12 @@ export default function Sprints() {
       }
       setFormData({ name: '', goal: '', startDate: '', endDate: '' });
       setOpenCreate(false);
-    } catch (error) {
+    } catch {
       addToast('Failed to save sprint', undefined, 'error');
     }
   };
 
-  const handleEdit = (sprint: any) => {
+  const handleEdit = (sprint: Sprint) => {
     setEditingSprint(sprint);
     setFormData({
       name: sprint.name,
@@ -91,29 +92,30 @@ export default function Sprints() {
       await deleteSprint(deleteSprintId);
       setDeleteSprintId(null);
       addToast('Sprint deleted successfully', undefined, 'success');
-    } catch (error) {
+    } catch {
       addToast('Failed to delete sprint', undefined, 'error');
     }
   };
 
-  const columns = [
+  const columns: Column<Sprint>[] = [
     { key: 'name' as const, label: 'Sprint Name', sortable: true },
     {
       key: 'startDate' as const,
       label: 'Start Date',
-      render: (value: any) => formatDate(value),
+      render: (value) => formatDate(value as Date),
     },
     {
       key: 'endDate' as const,
       label: 'End Date',
-      render: (value: any) => formatDate(value),
+      render: (value) => formatDate(value as Date),
     },
     {
       key: 'goal' as const,
       label: 'Goal',
-      render: (value: any) => (
-        <span className="text-muted-foreground truncate">{value || '—'}</span>
-      ),
+      render: (value) => {
+        const goal = typeof value === 'string' && value.trim() ? value : '-';
+        return <span className="text-muted-foreground truncate">{goal}</span>;
+      },
     },
   ];
 

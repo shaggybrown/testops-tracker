@@ -1,10 +1,9 @@
 'use client';
 
 import { useMembersStore } from '@/stores/useMembersStore';
-import { useTeamsStore } from '@/stores/useTeamsStore';
 import { useUiStore } from '@/stores/useUiStore';
 import { PageHeader } from '@/components/Common';
-import { DataTable } from '@/components/DataTable';
+import { Column, DataTable } from '@/components/DataTable';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -18,21 +17,20 @@ import {
 import { MemberForm } from '@/components/Forms';
 import { Edit2, Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { Member } from '@/types';
 
 export default function Members() {
-  const { members, fetchMembers, isLoading, createMember, updateMember, deleteMember } =
+  const { members, fetchMembers, createMember, updateMember, deleteMember } =
     useMembersStore();
-  const { teams, fetchTeams } = useTeamsStore();
   const { addToast } = useUiStore();
-  const [editingMember, setEditingMember] = useState<any>(null);
+  const [editingMember, setEditingMember] = useState<Member | null>(null);
   const [deleteMemberId, setDeleteMemberId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchMembers();
-    fetchTeams();
-  }, []);
+  }, [fetchMembers]);
 
-  const handleCreateMember = async (data: any) => {
+  const handleCreateMember = async (data: Pick<Member, 'name' | 'email' | 'roles' | 'teamIds'>) => {
     try {
       await createMember({
         ...data,
@@ -40,17 +38,18 @@ export default function Members() {
         active: true,
       });
       addToast('Member added successfully', undefined, 'success');
-    } catch (error) {
+    } catch {
       addToast('Failed to add member', undefined, 'error');
     }
   };
 
-  const handleUpdateMember = async (data: any) => {
+  const handleUpdateMember = async (data: Pick<Member, 'name' | 'email' | 'roles' | 'teamIds'>) => {
+    if (!editingMember) return;
     try {
       await updateMember(editingMember.id, data);
       setEditingMember(null);
       addToast('Member updated successfully', undefined, 'success');
-    } catch (error) {
+    } catch {
       addToast('Failed to update member', undefined, 'error');
     }
   };
@@ -61,20 +60,20 @@ export default function Members() {
       await deleteMember(deleteMemberId);
       setDeleteMemberId(null);
       addToast('Member deleted successfully', undefined, 'success');
-    } catch (error) {
+    } catch {
       addToast('Failed to delete member', undefined, 'error');
     }
   };
 
-  const columns = [
+  const columns: Column<Member>[] = [
     { key: 'name' as const, label: 'Name', sortable: true },
     { key: 'email' as const, label: 'Email', sortable: true },
     {
       key: 'roles' as const,
       label: 'Roles',
-      render: (value: any) => (
+      render: (value) => (
         <div className="flex gap-1 flex-wrap">
-          {value.map((role: string) => (
+          {(value as Member['roles']).map((role) => (
             <Badge key={role} variant="outline" className="text-xs">
               {role}
             </Badge>
@@ -85,7 +84,7 @@ export default function Members() {
     {
       key: 'active' as const,
       label: 'Status',
-      render: (value: any) => (
+      render: (value) => (
         <span className={value ? 'text-green-600' : 'text-muted-foreground'}>
           {value ? 'Active' : 'Inactive'}
         </span>
@@ -98,7 +97,7 @@ export default function Members() {
       <PageHeader
         title="Members"
         description="Manage team members and roles"
-        action={<MemberForm teams={teams} onSubmit={handleCreateMember} />}
+        action={<MemberForm onSubmit={handleCreateMember} />}
       />
 
       <DataTable
@@ -127,7 +126,6 @@ export default function Members() {
       {editingMember && (
         <MemberForm
           member={editingMember}
-          teams={teams}
           isOpen={true}
           onOpenChange={(open) => !open && setEditingMember(null)}
           onSubmit={handleUpdateMember}

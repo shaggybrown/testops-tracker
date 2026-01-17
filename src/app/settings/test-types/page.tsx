@@ -4,9 +4,8 @@ import { useTestTypesStore } from '@/stores/useTestTypesStore';
 import { useTeamsStore } from '@/stores/useTeamsStore';
 import { useUiStore } from '@/stores/useUiStore';
 import { PageHeader, EmptyState } from '@/components/Common';
-import { DataTable } from '@/components/DataTable';
+import { Column, DataTable } from '@/components/DataTable';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -16,11 +15,12 @@ import { Badge } from '@/components/ui/badge';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Plus, Edit2, Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { TestTypeDefinition } from '@/types';
 
 type TestTypeFormData = {
   name: string;
   description: string;
-  ownerTeamId: string;
+  ownerTeamId?: string;
   participatingTeamIds: string[];
 };
 
@@ -42,7 +42,7 @@ export default function TestTypesPage() {
   useEffect(() => {
     fetchTestTypes();
     fetchTeams();
-  }, []);
+  }, [fetchTestTypes, fetchTeams]);
 
   const handleCreate = () => {
     setFormData({
@@ -55,7 +55,7 @@ export default function TestTypesPage() {
     setShowSheet(true);
   };
 
-  const handleEdit = (tt: any) => {
+  const handleEdit = (tt: TestTypeDefinition) => {
     setFormData({
       name: tt.name,
       description: tt.description || '',
@@ -68,7 +68,7 @@ export default function TestTypesPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.name || !formData.ownerTeamId) {
+    if (!formData.name) {
       addToast('Please fill all required fields');
       return;
     }
@@ -107,52 +107,42 @@ export default function TestTypesPage() {
     return teams.find((t) => t.id === teamId)?.name || teamId;
   };
 
-  const columns: any[] = [
+  const columns: Column<TestTypeDefinition>[] = [
     {
       key: 'name',
       label: 'Test Type',
-      render: (tt: any) => <span className="font-semibold">{tt.name}</span>,
+      render: (_value: unknown, tt) => <span className="font-semibold">{tt.name}</span>,
     },
     {
       key: 'description',
       label: 'Description',
-      render: (tt: any) => (
+      render: (_value: unknown, tt) => (
         <span className="text-sm text-muted-foreground">{tt.description || '-'}</span>
       ),
     },
     {
-      key: 'owner',
+      key: 'ownerTeamId',
       label: 'Owner Team',
-      render: (tt: any) => <Badge variant="outline">{getTeamName(tt.ownerTeamId)}</Badge>,
+      render: (_value: unknown, tt) => (
+        <Badge variant="outline">
+          {tt.ownerTeamId ? getTeamName(tt.ownerTeamId) : <span className="text-muted-foreground">Unassigned</span>}
+        </Badge>
+      ),
     },
     {
-      key: 'teams',
+      key: 'participatingTeamIds',
       label: 'Participating Teams',
-      render: (tt: any) => (
+      render: (_value: unknown, tt) => (
         <div className="flex gap-1 flex-wrap">
           {tt.participatingTeamIds.length === 0 ? (
             <span className="text-xs text-muted-foreground">None</span>
           ) : (
-            tt.participatingTeamIds.map((teamId: string) => (
+            tt.participatingTeamIds.map((teamId) => (
               <Badge key={teamId} variant="secondary" className="text-xs">
                 {getTeamName(teamId)}
               </Badge>
             ))
           )}
-        </div>
-      ),
-    },
-    {
-      key: 'actions',
-      label: 'Actions',
-      render: (tt: any) => (
-        <div className="flex gap-2">
-          <Button variant="ghost" size="sm" onClick={() => handleEdit(tt)}>
-            <Edit2 className="h-4 w-4" />
-          </Button>
-          <Button variant="ghost" size="sm" onClick={() => setDeleteId(tt.id)}>
-            <Trash2 className="h-4 w-4 text-destructive" />
-          </Button>
         </div>
       ),
     },
@@ -178,7 +168,20 @@ export default function TestTypesPage() {
           description="Create your first test type definition"
         />
       ) : (
-        <DataTable columns={columns} data={testTypes} />
+        <DataTable
+          columns={columns}
+          data={testTypes}
+          actions={(tt) => (
+            <div className="flex gap-2">
+              <Button variant="ghost" size="sm" onClick={() => handleEdit(tt)}>
+                <Edit2 className="h-4 w-4" />
+              </Button>
+              <Button variant="ghost" size="sm" onClick={() => setDeleteId(tt.id)}>
+                <Trash2 className="h-4 w-4 text-destructive" />
+              </Button>
+            </div>
+          )}
+        />
       )}
 
       {/* Create/Edit Sheet */}
@@ -209,10 +212,10 @@ export default function TestTypesPage() {
             </div>
 
             <div>
-              <Label htmlFor="ownerTeam">Owner Team *</Label>
-              <Select value={formData.ownerTeamId} onValueChange={(value) => setFormData({ ...formData, ownerTeamId: value })}>
+              <Label htmlFor="ownerTeam">Owner Team (Optional)</Label>
+              <Select value={formData.ownerTeamId || ''} onValueChange={(value) => setFormData({ ...formData, ownerTeamId: value === '' ? '' : value })}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Select owner team" />
+                  <SelectValue placeholder="Assign later when creating test activities" />
                 </SelectTrigger>
                 <SelectContent>
                   {teams.map((team) => (

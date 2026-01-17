@@ -3,12 +3,12 @@
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useEffortsStore } from '@/stores/useEffortsStore';
 import { PageHeader, EmptyState } from '@/components/Common';
-import { DataTable } from '@/components/DataTable';
+import { Column, DataTable } from '@/components/DataTable';
 import { StatusBadge, PriorityBadge } from '@/components/Badges';
-import { Button } from '@/components/ui/button';
 import { CheckSquare } from 'lucide-react';
 import { useEffect, useMemo } from 'react';
 import { formatDate } from '@/lib/utils';
+import { TestEffort } from '@/types';
 
 export default function MyWork() {
   const { user } = useAuthStore();
@@ -16,7 +16,7 @@ export default function MyWork() {
 
   useEffect(() => {
     fetchEfforts();
-  }, []);
+  }, [fetchEfforts]);
 
   const myEfforts = useMemo(
     () =>
@@ -34,38 +34,41 @@ export default function MyWork() {
     [efforts, user?.id]
   );
 
-  const columns = [
+  const columns: Column<TestEffort>[] = [
     { key: 'title' as const, label: 'Title', sortable: true },
     {
       key: 'status' as const,
       label: 'Status',
-      render: (value: any) => <StatusBadge status={value} />,
+      render: (value) => <StatusBadge status={value as TestEffort['status']} />,
     },
     {
       key: 'priority' as const,
       label: 'Priority',
-      render: (value: any) => <PriorityBadge priority={value} />,
+      render: (value) => <PriorityBadge priority={value as TestEffort['priority']} />,
     },
     {
       key: 'plannedEndDate' as const,
       label: 'Due Date',
-      render: (value: any) =>
-        value ? formatDate(value) : <span className="text-muted-foreground">—</span>,
+      render: (value) =>
+        value ? formatDate(value as Date) : <span className="text-muted-foreground">-</span>,
     },
     {
       key: 'progress' as const,
       label: 'Progress',
-      render: (value: any) => (
-        <div className="flex items-center gap-2">
-          <div className="w-16 bg-muted rounded-full h-2">
-            <div
-              className="bg-primary h-full rounded-full"
-              style={{ width: `${value}%` }}
-            />
+      render: (value) => {
+        const progress = typeof value === 'number' ? value : 0;
+        return (
+          <div className="flex items-center gap-2">
+            <div className="w-16 bg-muted rounded-full h-2">
+              <div
+                className="bg-primary h-full rounded-full"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
+            <span className="text-xs">{progress}%</span>
           </div>
-          <span className="text-xs">{value}%</span>
-        </div>
-      ),
+        );
+      },
     },
   ];
 
